@@ -780,7 +780,11 @@ const Generator = () => {
     { id: "product", label: "Produk Saja (Estetik)" },
     { id: "lifestyle_carry", label: "Dibawa Cewek Asia" },
     { id: "lifestyle_use", label: "Dipakai Cewek Asia" },
+    { id: "drink_glass", label: "Minum di Gelas (Tanpa Sedotan)" },
+    { id: "on_table", label: "Produk di Meja (Variatif)" },
   ];
+
+  const [autoSaveToPlanner, setAutoSaveToPlanner] = useState(false);
 
   const handleGenerate = async () => {
     if (!productName && !selectedImage) {
@@ -801,9 +805,13 @@ const Generator = () => {
       if (contentType === "full") {
         let styleInstruction = "";
         if (imageStyle === "lifestyle_carry") {
-          styleInstruction = "Hasil generate gambar HARUS menampilkan seorang wanita Asia cantik yang sedang membawa/memegang produk tersebut di lokasi yang estetis (seperti cafe, taman, atau interior minimalis).";
+          styleInstruction = "Hasil generate gambar HARUS menampilkan seorang wanita Asia cantik yang sedang membawa/memegang produk tersebut di lokasi yang estetis. Pakaian/kostum yang dikenakan harus variatif, mencolok, dan menggunakan kombinasi warna yang berani atau 'tabrak warna' (clashing colors) agar terlihat sangat menonjol.";
         } else if (imageStyle === "lifestyle_use") {
-          styleInstruction = "Hasil generate gambar HARUS menampilkan seorang wanita Asia cantik yang sedang menggunakan produk tersebut (misal: mengoleskan skincare, memakai baju, atau menggunakan gadget) dengan ekspresi bahagia.";
+          styleInstruction = "Hasil generate gambar HARUS menampilkan seorang wanita Asia cantik yang sedang menggunakan produk tersebut dengan ekspresi bahagia. Pakaian/kostum yang dikenakan harus variatif, mencolok, dan menggunakan kombinasi warna yang berani atau 'tabrak warna' (clashing colors) untuk daya tarik visual maksimal.";
+        } else if (imageStyle === "drink_glass") {
+          styleInstruction = "Hasil generate gambar HARUS menampilkan produk yang sudah dituang ke dalam gelas kaca bening yang estetik, tanpa sedotan. Produk terlihat segar dan menggugah selera. Latar belakang variatif (seperti cafe, teras rumah, atau taman).";
+        } else if (imageStyle === "on_table") {
+          styleInstruction = "Hasil generate gambar HARUS menampilkan produk yang diletakkan di atas meja (meja kayu, marmer, atau meja cafe) dengan dekorasi pendukung yang estetik. Latar belakang variatif dan menarik (indoor maupun outdoor).";
         } else {
           styleInstruction = "Hasil generate gambar HARUS menampilkan produk itu sendiri dalam setting flatlay atau studio yang sangat estetis.";
         }
@@ -848,11 +856,12 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
 
       const text = response.text || "";
       
+      let finalImageUrl = null;
+      
       if (contentType === "full") {
         setResults([text]);
         
         const imagePromptMatch = text.match(/IMAGE_GENERATION_PROMPT:\s*([\s\S]*?)(?=\n[A-Z_]+:|$)/i);
-        let finalImageUrl = null;
         
         if (imagePromptMatch) {
           try {
@@ -906,9 +915,51 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
             type: contentType,
             prompt: prompt,
             result: text,
-            imageUrl: generatedImageUrl,
+            imageUrl: finalImageUrl || generatedImageUrl,
             createdAt: serverTimestamp()
           });
+
+          if (autoSaveToPlanner) {
+            const postsRef = collection(db, "users", user.uid, "scheduledPosts");
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(10, 0, 0, 0);
+
+            if (contentType === "full") {
+              const parsed = parseFullResult(text);
+              await addDoc(postsRef, {
+                title: parsed.title || productName || "Untitled Pin",
+                description: parsed.description || parsed.caption || "",
+                altText: parsed.altText || "",
+                link: "",
+                imageUrl: finalImageUrl || generatedImageUrl || "",
+                tags: parsed.keywords || "",
+                recommendedBoard: parsed.boardName || "",
+                uid: user.uid,
+                status: "ready",
+                scheduledAt: tomorrow,
+                createdAt: serverTimestamp()
+              });
+            } else {
+              // For individual variations, save each as a separate post
+              const parsed = text.split(/\d+\.\s+/).filter((s: string) => s.trim().length > 0);
+              for (const res of parsed) {
+                await addDoc(postsRef, {
+                  title: res.substring(0, 50) + "...",
+                  description: res,
+                  altText: "",
+                  link: "",
+                  imageUrl: "",
+                  tags: "",
+                  recommendedBoard: "",
+                  uid: user.uid,
+                  status: "ready",
+                  scheduledAt: tomorrow,
+                  createdAt: serverTimestamp()
+                });
+              }
+            }
+          }
         } catch (error) {
           handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/generatorHistory`);
         }
@@ -927,8 +978,45 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
-  const handleSaveToPlanner = (text: string) => {
-    navigate("/scheduler", { state: { prefillText: text, generatedImage: generatedImageUrl } });
+  const [isSavingToPlanner, setIsSavingToPlanner] = useState(false);
+  const [saveToPlannerStatus, setSaveToPlannerStatus] = useState<"idle" | "success" | "error">("idle");
+
+  const handleSaveToPlanner = async (text: string) => {
+    if (!user) return;
+    setIsSavingToPlanner(true);
+    setSaveToPlannerStatus("idle");
+
+    const parsed = parseFullResult(text);
+    
+    try {
+      const postsRef = collection(db, "users", user.uid, "scheduledPosts");
+      // Default scheduled time: tomorrow at 10:00 AM
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0);
+
+      await addDoc(postsRef, {
+        title: parsed.title || productName || "Untitled Pin",
+        description: parsed.description || parsed.caption || "",
+        altText: parsed.altText || "",
+        link: "", // User will need to add their affiliate link later
+        imageUrl: generatedImageUrl || "",
+        tags: parsed.keywords || "",
+        recommendedBoard: parsed.boardName || "",
+        uid: user.uid,
+        status: "ready",
+        scheduledAt: tomorrow,
+        createdAt: serverTimestamp()
+      });
+      setSaveToPlannerStatus("success");
+      setTimeout(() => setSaveToPlannerStatus("idle"), 3000);
+    } catch (err) {
+      console.error("Save to Planner Error:", err);
+      setSaveToPlannerStatus("error");
+      setTimeout(() => setSaveToPlannerStatus("idle"), 3000);
+    } finally {
+      setIsSavingToPlanner(false);
+    }
   };
 
   const parseFullResult = (text: string) => {
@@ -944,7 +1032,7 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
       description: extractField('DESCRIPTION'),
       altText: extractField('ALT_TEXT'),
       keywords: extractField('KEYWORDS'),
-      board: extractField('BOARD_NAME')
+      boardName: extractField('BOARD_NAME')
     };
   };
 
@@ -1065,6 +1153,21 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
                   ))}
                 </div>
               </div>
+
+              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">Otomatis Simpan</p>
+                    <p className="text-[10px] text-zinc-400 font-medium">Simpan hasil ke Planner secara otomatis</p>
+                  </div>
+                  <div 
+                    onClick={() => setAutoSaveToPlanner(!autoSaveToPlanner)}
+                    className={`w-12 h-6 rounded-full p-1 transition-all ${autoSaveToPlanner ? "bg-emerald-600" : "bg-zinc-200 dark:bg-zinc-800"}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white transition-all transform ${autoSaveToPlanner ? "translate-x-6" : "translate-x-0"}`}></div>
+                  </div>
+                </label>
+              </div>
             </div>
 
             <button 
@@ -1075,6 +1178,11 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
               {loading ? <RefreshCw className="animate-spin" /> : <Sparkles size={24} />}
               <span className="text-lg">{loading ? "Generating..." : "Mulai Generate"}</span>
             </button>
+            {autoSaveToPlanner && !loading && (
+              <p className="text-[10px] text-emerald-600 font-black uppercase tracking-widest text-center animate-pulse">
+                Auto-Save Aktif: Hasil akan langsung masuk ke Planner
+              </p>
+            )}
           </div>
         </div>
 
@@ -1113,10 +1221,23 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
                     ))}
                     <button 
                       onClick={() => handleSaveToPlanner(results[0])}
-                      className="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-2xl shadow-emerald-600/20 active:scale-95 transition-all mt-4"
+                      disabled={isSavingToPlanner}
+                      className={`w-full py-5 rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-2xl transition-all mt-4 ${
+                        saveToPlannerStatus === "success" 
+                          ? "bg-emerald-500 text-white" 
+                          : saveToPlannerStatus === "error"
+                          ? "bg-red-600 text-white"
+                          : "bg-emerald-600 text-white shadow-emerald-600/20 active:scale-95"
+                      }`}
                     >
-                      <Calendar size={20} />
-                      Simpan ke Planner
+                      {isSavingToPlanner ? (
+                        <RefreshCw className="animate-spin" size={20} />
+                      ) : saveToPlannerStatus === "success" ? (
+                        <CheckSquare size={20} />
+                      ) : (
+                        <Calendar size={20} />
+                      )}
+                      {isSavingToPlanner ? "Menyimpan..." : saveToPlannerStatus === "success" ? "Tersimpan di Planner!" : saveToPlannerStatus === "error" ? "Gagal Menyimpan" : "Simpan ke Planner"}
                     </button>
                   </div>
                 ) : (
@@ -1126,14 +1247,25 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
                     </div>
                     <div className="space-y-3">
                       {results.map((res, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl group">
-                          <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{res}</p>
-                          <button 
-                            onClick={() => copyToClipboard(res, i)}
-                            className="p-2 text-zinc-400 hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100"
-                          >
-                            <Copy size={14} />
-                          </button>
+                        <div key={i} className="flex flex-col gap-2 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl group">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{res}</p>
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => copyToClipboard(res, i)}
+                                className="p-2 text-zinc-400 hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100"
+                              >
+                                <Copy size={14} />
+                              </button>
+                              <button 
+                                onClick={() => handleSaveToPlanner(res)}
+                                className="p-2 text-zinc-400 hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100"
+                                title="Simpan ke Planner"
+                              >
+                                <Calendar size={14} />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1166,9 +1298,9 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
                         <h4 className="text-lg font-black leading-tight line-clamp-2">
                           {parseFullResult(results[0]).title || "Judul Pin Anda Akan Muncul Di Sini"}
                         </h4>
-                        {parseFullResult(results[0]).board && (
+                        {parseFullResult(results[0]).boardName && (
                           <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
-                            Board: {parseFullResult(results[0]).board}
+                            Board: {parseFullResult(results[0]).boardName}
                           </div>
                         )}
                       </div>
