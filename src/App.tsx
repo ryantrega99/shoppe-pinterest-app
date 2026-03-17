@@ -2460,10 +2460,17 @@ const LandingPage = ({ darkMode, setDarkMode }: { darkMode: boolean, setDarkMode
               
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-4">
-                  <span className="text-3xl font-bold text-zinc-400 line-through">Rp 499.000</span>
-                  <span className="text-8xl font-black text-zinc-900 dark:text-white tracking-tighter">Rp 199k</span>
+                  <span className="text-3xl font-bold text-zinc-400 line-through">Rp 150.000</span>
+                  <span className="text-8xl font-black text-zinc-900 dark:text-white tracking-tighter">Rp 49k</span>
                 </div>
-                <p className="text-emerald-600 font-black uppercase tracking-widest text-sm">Promo Terbatas! Sisa 12 Lisensi Lagi.</p>
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-emerald-600 font-black uppercase tracking-widest text-sm animate-pulse">Promo Flash Sale! Sisa 3 Lisensi Lagi.</p>
+                  <div className="flex gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-md">00j</span>
+                    <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-md">14m</span>
+                    <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-md">52d</span>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left max-w-2xl mx-auto">
