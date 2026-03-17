@@ -1,0 +1,137 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{uid}
+    // Fields: uid, email, displayName, photoURL, createdAt
+    //
+    // Collection: /users/{uid}/links/{linkId}
+    // Fields: uid, name, url, niche, commission, createdAt
+    //
+    // Collection: /users/{uid}/checklist/{taskId}
+    // Fields: uid, text, completed, date, createdAt
+    //
+    // Collection: /users/{uid}/generatorHistory/{historyId}
+    // Fields: uid, product, prompt, result, type, createdAt
+    //
+    // Collection: /users/{uid}/scheduledPosts/{postId}
+    // Fields: uid, title, description, link, imageUrl, boardId, scheduledAt, status, error, createdAt
+    //
+    // Collection: /users/{uid}/stats/summary
+    // Fields: totalPins, totalClicks, totalCommission, totalFollowers, updatedAt
+    //
+    // Collection: /users/{uid}/dailyPerformance/{dateId}
+    // Fields: date, clicks, sales
+    //
+    // Collection: /licenseKeys/{keyId}
+    // Fields: key, isUsed, usedBy, createdAt, usedAt
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "ryantrega99@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidString(val, min, max) {
+      return val is string && val.size() >= min && val.size() <= max;
+    }
+
+    function isValidEmail(email) {
+      return email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Domain Validators
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email);
+    }
+
+    function isValidLink(data) {
+      return data.keys().hasAll(['uid', 'name', 'url', 'niche', 'commission']) &&
+             data.uid == request.auth.uid &&
+             isValidString(data.name, 1, 100) &&
+             isValidString(data.url, 5, 500) &&
+             isValidString(data.niche, 1, 50);
+    }
+
+    function isValidChecklistTask(data) {
+      return data.keys().hasAll(['uid', 'text', 'completed', 'date']) &&
+             data.uid == request.auth.uid &&
+             isValidString(data.text, 1, 200) &&
+             data.completed is bool &&
+             isValidString(data.date, 10, 10); // YYYY-MM-DD
+    }
+
+    function isValidGeneratorHistory(data) {
+      return data.keys().hasAll(['uid', 'product', 'prompt', 'result', 'type']) &&
+             data.uid == request.auth.uid &&
+             isValidString(data.product, 1, 200) &&
+             isValidString(data.prompt, 1, 1000) &&
+             isValidString(data.result, 1, 5000);
+    }
+
+    function isValidScheduledPost(data) {
+      return data.keys().hasAll(['uid', 'title', 'link', 'scheduledAt', 'status']) &&
+             data.uid == request.auth.uid &&
+             isValidString(data.title, 1, 100) &&
+             isValidString(data.link, 5, 500) &&
+             data.status in ['pending', 'posted', 'failed'];
+    }
+
+    // Rules
+    match /users/{uid} {
+      // Allow the owner
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      
+      // Allow the server-side cron job (which has no auth) to find users and tokens
+      allow read: if true; 
+
+      match /private/pinterest {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if true; // For cron job
+      }
+
+      match /private/settings {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      match /scheduledPosts/{postId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read, write: if true; // For cron job
+      }
+      
+      match /{allSubcollections=**} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    match /licenseKeys/{keyId} {
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                    request.resource.data.isUsed == true && 
+                    request.resource.data.usedBy == request.auth.uid &&
+                    resource.data.isUsed == false;
+      allow write: if isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

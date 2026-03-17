@@ -1,0 +1,177 @@
+{
+  "entities": {
+    "userProfile": {
+      "title": "User Profile",
+      "description": "Stores user basic information and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "link": {
+      "title": "Affiliate Link",
+      "description": "Stores affiliate links managed by the user",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "niche": { "type": "string" },
+        "commission": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "url"]
+    },
+    "checklistTask": {
+      "title": "Checklist Task",
+      "description": "Daily tasks for the user",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "text": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "text", "completed", "date"]
+    },
+    "generatorHistory": {
+      "title": "Generator History",
+      "description": "History of AI generated content",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "product": { "type": "string" },
+        "prompt": { "type": "string" },
+        "result": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "product", "prompt", "result", "type"]
+    },
+    "scheduledPosts": {
+      "title": "Scheduled Post",
+      "description": "Posts scheduled for Pinterest",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "altText": { "type": "string" },
+        "link": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "boardId": { "type": "string" },
+        "tags": { "type": "string" },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "posted", "failed"] },
+        "error": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "title", "link", "scheduledAt", "status"]
+    },
+    "pinterestTokens": {
+      "title": "Pinterest Tokens",
+      "description": "OAuth tokens for Pinterest",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "accessToken": { "type": "string" },
+        "refreshToken": { "type": "string" },
+        "expiresAt": { "type": "number" }
+      },
+      "required": ["uid", "accessToken"]
+    },
+    "userStats": {
+      "title": "User Stats",
+      "description": "Aggregated performance statistics for the user",
+      "type": "object",
+      "properties": {
+        "totalPins": { "type": "number" },
+        "totalClicks": { "type": "number" },
+        "totalCommission": { "type": "number" },
+        "totalFollowers": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "dailyPerformance": {
+      "title": "Daily Performance",
+      "description": "Daily click and sale data for charts",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "clicks": { "type": "number" },
+        "sales": { "type": "number" }
+      },
+      "required": ["date", "clicks", "sales"]
+    },
+    "userSettings": {
+      "title": "User Settings",
+      "description": "Private settings including API keys and license info",
+      "type": "object",
+      "properties": {
+        "geminiApiKey": { "type": "string" },
+        "pinterestClientId": { "type": "string" },
+        "pinterestClientSecret": { "type": "string" },
+        "licenseKey": { "type": "string" },
+        "isActivated": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "licenseKey": {
+      "title": "License Key",
+      "description": "A valid activation key for the application",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "isUsed": { "type": "boolean" },
+        "usedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "usedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["key", "isUsed"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "userProfile",
+      "description": "User profile document"
+    },
+    "/users/{uid}/stats/summary": {
+      "schema": "userStats",
+      "description": "User's aggregated performance statistics"
+    },
+    "/users/{uid}/dailyPerformance/{dateId}": {
+      "schema": "dailyPerformance",
+      "description": "User's daily performance data for charts"
+    },
+    "/users/{uid}/links/{linkId}": {
+      "schema": "link",
+      "description": "User's affiliate links"
+    },
+    "/users/{uid}/checklist/{taskId}": {
+      "schema": "checklistTask",
+      "description": "User's daily checklist tasks"
+    },
+    "/users/{uid}/generatorHistory/{historyId}": {
+      "schema": "generatorHistory",
+      "description": "User's AI content generation history"
+    },
+    "/users/{uid}/scheduledPosts/{postId}": {
+      "schema": "scheduledPosts",
+      "description": "User's scheduled Pinterest posts"
+    },
+    "/users/{uid}/private/settings": {
+      "schema": "userSettings",
+      "description": "User's private API keys and settings"
+    },
+    "/licenseKeys/{keyId}": {
+      "schema": "licenseKey",
+      "description": "Global collection of valid license keys"
+    }
+  }
+}

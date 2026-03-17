@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      // Fix for "Cannot set property fetch of #<Window> which has only a getter"
+      // This error occurs when libraries try to overwrite window.fetch in restricted environments.
+      (function() {
+        function patchFetch(obj) {
+          if (!obj) return;
+          try {
+            const originalFetch = obj.fetch;
+            Object.defineProperty(obj, 'fetch', {
+              get: function() { return this.__fetch_polyfilled || originalFetch; },
+              set: function(v) { this.__fetch_polyfilled = v; },
+              configurable: true,
+              enumerable: true
+            });
+          } catch (e) {
+            // Fallback for extremely restricted environments
+            try {
+              obj.fetch = obj.fetch; 
+            } catch (e2) {}
+          }
+        }
+        patchFetch(window);
+        patchFetch(self);
+        if (typeof globalThis !== 'undefined') patchFetch(globalThis);
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shopee Pinterest Manager</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
