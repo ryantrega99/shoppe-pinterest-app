@@ -266,7 +266,7 @@ const Sidebar = ({ isOpen, setIsOpen, darkMode, setDarkMode }: { isOpen: boolean
   const menuItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Generator", path: "/generator", icon: Sparkles },
-    { name: "Scheduler", path: "/scheduler", icon: Calendar },
+    { name: "Planner", path: "/scheduler", icon: Calendar },
     { name: "Link Manager", path: "/links", icon: LinkIcon },
     { name: "Checklist", path: "/checklist", icon: CheckSquare },
     { name: "Estimasi", path: "/estimasi", icon: Calculator },
@@ -298,13 +298,13 @@ const Sidebar = ({ isOpen, setIsOpen, darkMode, setDarkMode }: { isOpen: boolean
       <div className={`hidden md:flex flex-col w-72 bg-white dark:bg-[#09090b] border-r border-zinc-200 dark:border-zinc-800/60 h-screen sticky top-0 z-40`}>
         <div className="p-8">
           <Link to="/dashboard" className="flex items-center gap-3 text-zinc-900 dark:text-white font-black text-2xl tracking-tighter">
-            <div className="bg-[#E60023] p-2 rounded-xl text-white shadow-lg shadow-red-500/20 animate-float">
+            <div className="bg-emerald-600 p-2 rounded-xl text-white shadow-lg shadow-emerald-500/20 animate-float">
               <TrendingUp size={24} />
             </div>
             <span className="text-gradient">ShopeePin</span>
             <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] font-black rounded-full uppercase tracking-widest shadow-lg shadow-amber-500/20">Pro</span>
           </Link>
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mt-3 ml-1">Pinterest Affiliate</p>
+          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mt-3 ml-1">Content Planner AI</p>
         </div>
 
         <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto">
@@ -430,7 +430,6 @@ const Dashboard = ({ darkMode }: { darkMode: boolean }) => {
   const [liveStats, setLiveStats] = useState<any>(null);
   const [liveChartData, setLiveChartData] = useState<any[]>([]);
   const [scheduledCount, setScheduledCount] = useState(0);
-  const [isPinterestConnected, setIsPinterestConnected] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -459,19 +458,11 @@ const Dashboard = ({ darkMode }: { darkMode: boolean }) => {
 
     // Listen to scheduled posts
     const postsRef = collection(db, "users", user.uid, "scheduledPosts");
-    const qPosts = query(postsRef, where("status", "==", "pending"));
+    const qPosts = query(postsRef);
     const unsubPosts = onSnapshot(qPosts, (snap) => {
       setScheduledCount(snap.size);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}/scheduledPosts`);
-    });
-
-    // Check Pinterest connection
-    const tokenRef = doc(db, "users", user.uid, "private", "pinterest");
-    const unsubToken = onSnapshot(tokenRef, (doc) => {
-      setIsPinterestConnected(doc.exists());
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/private/pinterest`);
     });
 
     // Listen to daily performance (last 7 days)
@@ -505,13 +496,12 @@ const Dashboard = ({ darkMode }: { darkMode: boolean }) => {
       unsubStats();
       unsubPerf();
       unsubPosts();
-      unsubToken();
     };
   }, [user]);
 
   const stats = [
     { 
-      label: "Total Pin", 
+      label: "Total Konten", 
       value: liveStats ? liveStats.totalPins.toLocaleString() : "0", 
       trend: "+12%", 
       icon: Sparkles, 
@@ -519,9 +509,9 @@ const Dashboard = ({ darkMode }: { darkMode: boolean }) => {
       bg: "bg-emerald-500/10" 
     },
     { 
-      label: "Terjadwal", 
+      label: "Rencana Aktif", 
       value: scheduledCount.toLocaleString(), 
-      trend: "Pending", 
+      trend: "Planner", 
       icon: Calendar, 
       color: "text-blue-500", 
       bg: "bg-blue-500/10" 
@@ -569,30 +559,6 @@ const Dashboard = ({ darkMode }: { darkMode: boolean }) => {
           <button className="px-4 py-2 rounded-xl text-zinc-500 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">30 Hari</button>
         </div>
       </header>
-
-      {!isPinterestConnected && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 bg-[#E60023] rounded-[2rem] text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-red-500/20"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 rounded-2xl">
-              <Settings size={24} />
-            </div>
-            <div>
-              <h3 className="text-lg font-black tracking-tight">Pinterest Belum Terhubung</h3>
-              <p className="text-red-100 text-sm font-medium">Hubungkan akun Pinterest Anda untuk mulai menjadwalkan Pin secara otomatis.</p>
-            </div>
-          </div>
-          <Link 
-            to="/scheduler"
-            className="px-8 py-3 bg-white text-[#E60023] font-black rounded-xl hover:bg-zinc-100 transition-all active:scale-95 whitespace-nowrap"
-          >
-            Hubungkan Sekarang
-          </Link>
-        </motion.div>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
@@ -961,7 +927,7 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
-  const handleSchedule = (text: string) => {
+  const handleSaveToPlanner = (text: string) => {
     navigate("/scheduler", { state: { prefillText: text, generatedImage: generatedImageUrl } });
   };
 
@@ -1146,11 +1112,11 @@ Pastikan label (TITLE:, CAPTION:, dll) ada di awal baris.`;
                       </div>
                     ))}
                     <button 
-                      onClick={() => handleSchedule(results[0])}
-                      className="w-full py-5 bg-[#E60023] text-white rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-2xl shadow-red-600/20 active:scale-95 transition-all mt-4"
+                      onClick={() => handleSaveToPlanner(results[0])}
+                      className="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-2xl shadow-emerald-600/20 active:scale-95 transition-all mt-4"
                     >
                       <Calendar size={20} />
-                      Jadwalkan ke Pinterest
+                      Simpan ke Planner
                     </button>
                   </div>
                 ) : (
@@ -1240,9 +1206,6 @@ const Scheduler = () => {
   const { settings } = useUserSettings();
   const location = useLocation();
   const [scheduledPosts, setScheduledPosts] = useState<any[]>([]);
-  const [boards, setBoards] = useState<any[]>([]);
-  const [boardsLoading, setBoardsLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     title: "",
@@ -1250,7 +1213,6 @@ const Scheduler = () => {
     altText: "",
     link: "",
     imageUrl: "",
-    boardId: "",
     scheduledAt: "",
     tags: "",
     recommendedBoard: ""
@@ -1283,19 +1245,8 @@ const Scheduler = () => {
         tags: keywords || prev.tags,
         recommendedBoard: boardName || prev.recommendedBoard
       }));
-
-      if (boardName && boards.length > 0) {
-        const recommendedBoard = boardName.toLowerCase();
-        const matchedBoard = boards.find(b => 
-          b.name.toLowerCase().includes(recommendedBoard) || 
-          recommendedBoard.includes(b.name.toLowerCase())
-        );
-        if (matchedBoard) {
-          setFormData(prev => ({ ...prev, boardId: matchedBoard.id }));
-        }
-      }
     }
-  }, [location.state, boards]);
+  }, [location.state]);
 
   useEffect(() => {
     if (authLoading || !user) {
@@ -1307,87 +1258,29 @@ const Scheduler = () => {
     const q = query(postsRef, orderBy("scheduledAt", "asc"));
     const unsubPosts = onSnapshot(q, (snap) => {
       setScheduledPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}/scheduledPosts`);
-    });
-
-    const tokenRef = doc(db, "users", user.uid, "private", "pinterest");
-    const unsubToken = onSnapshot(tokenRef, (doc) => {
-      if (doc.exists()) {
-        setIsConnected(true);
-        fetchBoards(doc.data().accessToken);
-      } else {
-        setIsConnected(false);
-      }
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/private/pinterest`);
       setLoading(false);
     });
 
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'PINTEREST_AUTH_SUCCESS') {
-        // Token will be updated via onSnapshot
-      }
-    };
-    window.addEventListener('message', handleMessage);
-
-    return () => {
-      unsubPosts();
-      unsubToken();
-      window.removeEventListener('message', handleMessage);
-    };
+    return () => unsubPosts();
   }, [user]);
-
-  const fetchBoards = async (token: string) => {
-    setBoardsLoading(true);
-    try {
-      const response = await axios.get("https://api.pinterest.com/v5/boards", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setBoards(response.data.items || []);
-    } catch (err) {
-      console.error("Error fetching boards:", err instanceof Error ? err.message : String(err));
-    } finally {
-      setBoardsLoading(false);
-    }
-  };
-
-  const handleConnect = async () => {
-    if (!user) return;
-    try {
-      const clientId = settings?.pinterestClientId || "";
-      const url = clientId 
-        ? `/api/auth/pinterest/url?uid=${user.uid}&clientId=${clientId}`
-        : `/api/auth/pinterest/url?uid=${user.uid}`;
-        
-      const response = await axios.get(url);
-      const { url: authUrl } = response.data;
-      const popup = window.open(authUrl, 'pinterest_oauth', 'width=600,height=700');
-      
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        alert("Popup terblokir! Silakan izinkan popup untuk menghubungkan Pinterest.");
-      }
-    } catch (err) {
-      console.error("Error connecting Pinterest:", err instanceof Error ? err.message : String(err));
-      alert("Gagal mendapatkan URL autentikasi. Pastikan PINTEREST_CLIENT_ID sudah diatur di Settings.");
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !formData.title || !formData.link || !formData.scheduledAt) return;
+    if (!user || !formData.title || !formData.scheduledAt) return;
 
     try {
       const postsRef = collection(db, "users", user.uid, "scheduledPosts");
       await addDoc(postsRef, {
         ...formData,
         uid: user.uid,
-        status: "pending",
+        status: "ready",
         scheduledAt: new Date(formData.scheduledAt),
         createdAt: serverTimestamp()
       });
-      setFormData({ title: "", description: "", altText: "", link: "", imageUrl: "", boardId: "", scheduledAt: "", tags: "", recommendedBoard: "" });
+      setFormData({ title: "", description: "", altText: "", link: "", imageUrl: "", scheduledAt: "", tags: "", recommendedBoard: "" });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/scheduledPosts`);
     }
@@ -1422,40 +1315,27 @@ const Scheduler = () => {
     <div className="max-w-7xl mx-auto space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-red-600 font-black uppercase tracking-widest text-[10px]">
+          <div className="flex items-center gap-2 text-emerald-600 font-black uppercase tracking-widest text-[10px]">
             <Calendar size={14} />
-            <span>Smart Scheduler</span>
+            <span>Content Planner</span>
           </div>
-          <h1 className="text-5xl font-black text-zinc-900 dark:text-white tracking-tighter">Pin Scheduler</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 font-medium">Atur jadwal postingan Anda untuk jangkauan maksimal secara otomatis.</p>
+          <h1 className="text-5xl font-black text-zinc-900 dark:text-white tracking-tighter">Plan Your Content</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium">Kelola antrean konten Pinterest Anda dengan rapi dan siap publikasi.</p>
         </div>
-        {!isConnected ? (
-          <button 
-            onClick={handleConnect}
-            className="bg-[#E60023] text-white font-black px-8 py-4 rounded-2xl flex items-center gap-3 shadow-xl shadow-red-500/20 active:scale-95 transition-all"
-          >
-            <Settings size={20} /> Hubungkan Pinterest
-          </button>
-        ) : (
-          <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 px-6 py-3 rounded-2xl border border-emerald-100 dark:border-emerald-800">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-widest">Pinterest Terhubung</span>
-          </div>
-        )}
       </header>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
         {/* Left: Form */}
         <div className="xl:col-span-4 space-y-8">
           <div className="glass-card p-8 rounded-[3rem] space-y-8 border border-zinc-200 dark:border-zinc-800 shadow-xl">
-            <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Buat Jadwal Baru</h2>
+            <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Rencana Konten Baru</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Judul Pin</label>
                 <input 
                   type="text" 
                   placeholder="Judul menarik..."
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
                 />
@@ -1465,7 +1345,7 @@ const Scheduler = () => {
                 <input 
                   type="url" 
                   placeholder="https://shope.ee/..."
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold"
                   value={formData.link}
                   onChange={e => setFormData({...formData, link: e.target.value})}
                 />
@@ -1474,7 +1354,7 @@ const Scheduler = () => {
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Deskripsi Pin</label>
                 <textarea 
                   placeholder="Deskripsi SEO..."
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold min-h-[100px]"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold min-h-[100px]"
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
                 />
@@ -1483,7 +1363,7 @@ const Scheduler = () => {
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Alt Text (Aksesibilitas)</label>
                 <textarea 
                   placeholder="Jelaskan apa yang ada di gambar..."
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold min-h-[80px]"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold min-h-[80px]"
                   value={formData.altText}
                   onChange={e => setFormData({...formData, altText: e.target.value})}
                 />
@@ -1493,7 +1373,7 @@ const Scheduler = () => {
                 <input 
                   type="url" 
                   placeholder="https://..."
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold"
                   value={formData.imageUrl}
                   onChange={e => setFormData({...formData, imageUrl: e.target.value})}
                 />
@@ -1504,24 +1384,11 @@ const Scheduler = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pilih Board</label>
-                <select 
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold appearance-none"
-                  value={formData.boardId}
-                  onChange={e => setFormData({...formData, boardId: e.target.value})}
-                >
-                  <option value="">{boardsLoading ? "Memuat Board..." : "Pilih Board..."}</option>
-                  {boards.map(board => (
-                    <option key={board.id} value={board.id}>{board.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Tags / Keywords (Pisahkan dengan koma)</label>
+                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Tags / Keywords</label>
                 <input 
                   type="text" 
                   placeholder="skincare, beauty, viral..."
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold"
                   value={formData.tags}
                   onChange={e => setFormData({...formData, tags: e.target.value})}
                 />
@@ -1530,40 +1397,19 @@ const Scheduler = () => {
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Waktu Posting</label>
                 <input 
                   type="datetime-local" 
-                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-bold"
+                  className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold"
                   value={formData.scheduledAt}
                   onChange={e => setFormData({...formData, scheduledAt: e.target.value})}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  type="submit"
-                  disabled={!formData.title || !formData.link || !formData.scheduledAt}
-                  className="bg-[#E60023] hover:bg-[#ad001a] disabled:opacity-50 text-white font-black py-5 rounded-[2rem] flex items-center justify-center gap-3 transition-all shadow-2xl shadow-red-600/20 active:scale-[0.98]"
-                >
-                  <Calendar size={20} />
-                  Jadwalkan
-                </button>
-                <button 
-                  type="button"
-                  onClick={async () => {
-                    const now = new Date();
-                    now.setMinutes(now.getMinutes() + 1);
-                    const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-                    setFormData(prev => ({ ...prev, scheduledAt: localNow }));
-                    // Trigger submit manually after state update
-                    setTimeout(() => {
-                      const form = document.querySelector('form');
-                      if (form) form.requestSubmit();
-                    }, 100);
-                  }}
-                  disabled={!formData.title || !formData.link}
-                  className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-black py-5 rounded-[2rem] flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98]"
-                >
-                  <TrendingUp size={20} />
-                  Post Sekarang
-                </button>
-              </div>
+              <button 
+                type="submit"
+                disabled={!formData.title || !formData.scheduledAt}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-5 rounded-[2rem] flex items-center justify-center gap-3 transition-all shadow-2xl shadow-emerald-600/20 active:scale-[0.98]"
+              >
+                <Calendar size={20} />
+                Simpan ke Planner
+              </button>
             </form>
           </div>
         </div>
@@ -1571,15 +1417,11 @@ const Scheduler = () => {
         {/* Right: List */}
         <div className="xl:col-span-8 space-y-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Antrean Posting</h2>
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Daftar Rencana Konten</h2>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-zinc-300"></div>
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Pending: {scheduledPosts.filter(p => p.status === 'pending').length}</span>
-              </div>
-              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Posted: {scheduledPosts.filter(p => p.status === 'posted').length}</span>
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Siap: {scheduledPosts.length}</span>
               </div>
             </div>
           </div>
@@ -1593,7 +1435,7 @@ const Scheduler = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 overflow-hidden group hover:border-red-500/30 transition-all shadow-sm hover:shadow-2xl hover:shadow-red-500/5"
+                  className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 overflow-hidden group hover:border-emerald-500/30 transition-all shadow-sm hover:shadow-2xl hover:shadow-emerald-500/5"
                 >
                   <div className="flex h-full">
                     <div className="w-32 bg-zinc-100 dark:bg-zinc-800 relative">
@@ -1604,15 +1446,6 @@ const Scheduler = () => {
                           <Image size={24} />
                         </div>
                       )}
-                      <div className="absolute top-2 left-2">
-                        <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${
-                          post.status === 'posted' ? 'bg-emerald-500 text-white' : 
-                          post.status === 'failed' ? 'bg-red-500 text-white' : 
-                          'bg-zinc-900 text-white'
-                        }`}>
-                          {post.status}
-                        </span>
-                      </div>
                     </div>
                     <div className="flex-1 p-6 flex flex-col justify-between">
                       <div className="space-y-2">
@@ -1625,17 +1458,29 @@ const Scheduler = () => {
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
-                            <Target size={12} />
-                          </div>
-                          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                            {boards.find(b => b.id === post.boardId)?.name || 'Board Umum'}
-                          </span>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${post.title}\n\n${post.description}\n\nLink: ${post.link}`);
+                              alert("Konten berhasil disalin!");
+                            }}
+                            className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-emerald-500 transition-all"
+                            title="Salin Konten"
+                          >
+                            <Copy size={16} />
+                          </button>
+                          <button 
+                            onClick={() => window.open(post.link, '_blank')}
+                            className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-emerald-500 transition-all"
+                            title="Buka Link"
+                          >
+                            <ExternalLink size={16} />
+                          </button>
                         </div>
                         <button 
                           onClick={() => deletePost(post.id)}
                           className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-red-500 transition-all"
+                          title="Hapus"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1649,8 +1494,8 @@ const Scheduler = () => {
                     <Calendar size={40} />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-black text-zinc-400 tracking-tight">Belum Ada Jadwal</h3>
-                    <p className="text-zinc-400 font-medium max-w-xs mx-auto">Mulai jadwalkan Pin Anda untuk membangun audiens yang setia.</p>
+                    <h3 className="text-xl font-black text-zinc-400 tracking-tight">Belum Ada Rencana</h3>
+                    <p className="text-zinc-400 font-medium max-w-xs mx-auto">Mulai susun rencana konten Anda untuk jangkauan maksimal.</p>
                   </div>
                 </div>
               )}
@@ -2099,9 +1944,7 @@ const SettingsPage = () => {
   const { user } = useAuth();
   const { settings, loading } = useUserSettings();
   const [formData, setFormData] = useState({
-    geminiApiKey: "",
-    pinterestClientId: "",
-    pinterestClientSecret: ""
+    geminiApiKey: ""
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
@@ -2109,9 +1952,7 @@ const SettingsPage = () => {
   useEffect(() => {
     if (settings) {
       setFormData({
-        geminiApiKey: settings.geminiApiKey || "",
-        pinterestClientId: settings.pinterestClientId || "",
-        pinterestClientSecret: settings.pinterestClientSecret || ""
+        geminiApiKey: settings.geminiApiKey || ""
       });
     }
   }, [settings]);
@@ -2176,45 +2017,6 @@ const SettingsPage = () => {
                 <p className="text-[10px] text-zinc-400 font-medium ml-1">Kosongkan untuk menggunakan API Key default sistem.</p>
               </div>
 
-              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-red-500/10 rounded-xl text-[#E60023]">
-                    <Calendar size={20} />
-                  </div>
-                  <h2 className="text-xl font-black text-zinc-800 dark:text-zinc-200 tracking-tight">Pinterest API Credentials</h2>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pinterest Client ID</label>
-                      <a href="https://developers.pinterest.com/apps/" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-red-600 hover:underline flex items-center gap-1">
-                        Developer Portal <ExternalLink size={10} />
-                      </a>
-                    </div>
-                    <input 
-                      type="text" 
-                      placeholder="Pinterest App Client ID..."
-                      className="w-full px-6 py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-medium"
-                      value={formData.pinterestClientId}
-                      onChange={(e) => setFormData({...formData, pinterestClientId: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pinterest Client Secret</label>
-                    <input 
-                      type="password" 
-                      placeholder="Pinterest App Client Secret..."
-                      className="w-full px-6 py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all font-medium"
-                      value={formData.pinterestClientSecret}
-                      onChange={(e) => setFormData({...formData, pinterestClientSecret: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-zinc-400 font-medium mt-4 ml-1">PENTING: Jika diisi, sistem akan menggunakan kredensial ini untuk proses OAuth Pinterest.</p>
-              </div>
-
               <button 
                 type="submit"
                 disabled={isSaving}
@@ -2254,20 +2056,6 @@ const SettingsPage = () => {
                 </div>
                 <p className="text-sm text-zinc-300 leading-relaxed">Gunakan API Key sendiri untuk menghindari limitasi kuota sistem dan menjaga privasi data.</p>
               </div>
-              <div className="flex gap-4">
-                <div className="mt-1 p-1.5 bg-emerald-500/20 rounded-lg text-emerald-400 shrink-0">
-                  <CheckSquare size={14} />
-                </div>
-                <p className="text-sm text-zinc-300 leading-relaxed">Kredensial Pinterest diperlukan jika Anda ingin menggunakan App Pinterest Anda sendiri.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
-            <h4 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest">Callback URL</h4>
-            <p className="text-xs text-zinc-500 leading-relaxed">Gunakan URL ini di Dashboard Pinterest Developer Anda sebagai Redirect URI:</p>
-            <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 break-all">
-              <code className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">{window.location.origin}/auth/callback</code>
             </div>
           </div>
 
@@ -2296,7 +2084,7 @@ const Panduan = () => {
     { title: "Daftar Shopee Affiliate", desc: "Daftar di program Shopee Affiliate dan pastikan akun Anda sudah disetujui.", icon: "01" },
     { title: "Riset Produk Viral", desc: "Cari produk yang sedang tren atau memiliki visual menarik di Shopee.", icon: "02" },
     { title: "Generate Konten AI", desc: "Gunakan menu Generator untuk membuat caption dan judul yang SEO-friendly.", icon: "03" },
-    { title: "Upload ke Pinterest", desc: "Buat Pin dengan visual estetik. Masukkan link affiliate Anda di kolom link.", icon: "04" },
+    { title: "Gunakan Planner", desc: "Simpan konten ke Planner, lalu copy-paste ke Pinterest sesuai jadwal yang Anda buat.", icon: "04" },
     { title: "Pantau & Optimasi", desc: "Cek analytics secara berkala dan ulangi proses untuk produk yang paling banyak klik.", icon: "05" },
   ];
 
@@ -2482,13 +2270,13 @@ const LandingPage = ({ darkMode, setDarkMode }: { darkMode: boolean, setDarkMode
             </div>
 
             {/* Small Card */}
-            <div className="glass-card p-10 rounded-[3rem] border border-zinc-200 dark:border-zinc-800 space-y-6 hover:border-blue-500/50 transition-all">
-              <div className="p-4 bg-blue-500 text-white rounded-2xl w-fit shadow-lg shadow-blue-500/20">
+            <div className="glass-card p-10 rounded-[3rem] border border-zinc-200 dark:border-zinc-800 space-y-6 hover:border-emerald-500/50 transition-all">
+              <div className="p-4 bg-emerald-600 text-white rounded-2xl w-fit shadow-lg shadow-emerald-600/20">
                 <Calendar size={32} />
               </div>
-              <h3 className="text-3xl font-black tracking-tight">Smart Scheduler</h3>
+              <h3 className="text-3xl font-black tracking-tight">Content Planner</h3>
               <p className="text-zinc-500 dark:text-zinc-400 font-medium">
-                Jadwalkan ratusan Pin untuk berminggu-minggu kedepan. Biarkan sistem bekerja saat Anda tidur.
+                Susun rencana konten Anda dengan rapi. Copy-paste konten viral ke Pinterest dengan satu klik.
               </p>
             </div>
 
@@ -2550,7 +2338,7 @@ const LandingPage = ({ darkMode, setDarkMode }: { darkMode: boolean, setDarkMode
                 {[
                   { step: "01", title: "Input Link Produk", desc: "Masukkan link Shopee atau nama produk." },
                   { step: "02", title: "AI Generation", desc: "AI membuat konten visual & teks SEO-friendly." },
-                  { step: "03", title: "Auto Publish", desc: "Sistem menjadwalkan postingan ke Pinterest." },
+                  { step: "03", title: "Plan & Copy", desc: "Susun jadwal di Planner & copy-paste ke Pinterest." },
                 ].map((s, i) => (
                   <div key={i} className="flex gap-6 items-center group">
                     <span className="text-4xl font-black text-zinc-200 dark:text-zinc-800 group-hover:text-emerald-500 transition-colors">{s.step}</span>
@@ -2681,7 +2469,7 @@ const LandingPage = ({ darkMode, setDarkMode }: { darkMode: boolean, setDarkMode
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left max-w-2xl mx-auto">
                 {[
                   "Unlimited AI Content",
-                  "Pinterest Auto Scheduler",
+                  "Pinterest Content Planner",
                   "Multi-Account Support",
                   "SEO Keyword Research",
                   "AI Image Generation",
